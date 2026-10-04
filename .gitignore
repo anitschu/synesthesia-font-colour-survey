@@ -1,0 +1,18 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Never publish participant data or collected responses
+participants.local.js
+*.csv
+responses*.json
+*.sav
+
+# Never pull in the main project / data / analysis
+dependencies/
+code/
+*.pptx
+*.zip

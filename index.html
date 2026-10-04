@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Colour Questionnaire</title>
+<style>
+  /* ============================================================= */
+  /*  Fonts loaded from ./fonts/  (relative to this index.html)    */
+  /* ============================================================= */
+  @font-face {
+    font-family: "BACS2serif";
+    src: url("./fonts/BACS2serif.otf") format("opentype");
+    font-weight: normal; font-style: normal; font-display: block;
+  }
+  @font-face {
+    font-family: "BACS2serifItalic";
+    src: url("./fonts/BACS2serif-Italic.otf") format("opentype");
+    font-weight: normal; font-style: normal; font-display: block;
+  }
+  @font-face {
+    font-family: "CourierNew";
+    src: url("./fonts/CourierNew.ttf") format("truetype");
+    font-weight: normal; font-style: normal; font-display: block;
+  }
+
+  :root {
+    --bg: #f4f4f5;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b7280;
+    --line: #e2e2e6;
+    --accent: #2563eb;
+    --accent-ink: #ffffff;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: var(--card);
+    width: min(640px, 100%);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.06);
+    padding: 32px 28px;
+    text-align: center;
+  }
+  h1 { font-size: 1.3rem; margin: 0 0 8px; }
+  .muted { color: var(--muted); }
+  .question {
+    font-size: 1.25rem; font-weight: 600; margin: 0 0 24px;
+    min-height: 1.5em;
+  }
+  .progress {
+    font-size: 0.85rem; color: var(--muted);
+    margin-bottom: 20px; letter-spacing: 0.02em;
+  }
+  .bar { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; margin: 8px 0 24px; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s ease; }
+
+  /* Big stimulus display */
+  .stim {
+    font-size: 140px; line-height: 1.1; margin: 10px 0 28px;
+    color: #000; min-height: 160px; display: flex; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  .stim.serif  { font-family: "BACS2serif", monospace; }
+  .stim.italic { font-family: "BACS2serifItalic", monospace; }
+  .stim.letter { font-family: "CourierNew", "Courier New", monospace; font-style: normal; text-transform: uppercase; }
+
+  .btnrow { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  button {
+    font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
+    padding: 12px 22px; background: #fff; color: var(--ink); transition: .12s;
+  }
+  button:hover { border-color: #c7c7cf; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.primary:hover { filter: brightness(1.05); }
+  button.yesno { min-width: 130px; font-size: 1.05rem; padding: 16px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .key { font-size: .8rem; opacity: .7; }
+
+  input[type="text"] {
+    font: inherit; font-size: 1.1rem; padding: 12px 14px; width: 100%;
+    border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; text-align: center;
+  }
+  input[type="text"]:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+
+  .lead { text-align: left; line-height: 1.55; }
+  .lead ul { padding-left: 20px; }
+  textarea.dump {
+    width: 100%; height: 160px; font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: .8rem; border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-top: 12px;
+  }
+  .pill { display:inline-block; background:#eef2ff; color:#3730a3; border-radius:999px; padding:4px 12px; font-size:.8rem; margin-bottom:14px;}
+  .hidden { display: none !important; }
+  .warn { color:#b45309; font-size:.85rem; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="card" id="app"><div class="question">Loading…</div></div>
+
+<!-- Per-participant letters. Edit docs/participants.js to add participants. -->
+<script src="participants.js"></script>
+<script>
+/* =================================================================== *
+ *  RESEARCHER CONFIG  —  EDIT THIS BLOCK FOR EACH PARTICIPANT          *
+ * =================================================================== */
+const CONFIG = {
+  // Participant ID is entered by the participant on the first screen and
+  // looked up in participants.js. This value is only a fallback default.
+  participantId: "P001",
+
+  // Fallback letters, used ONLY if the entered ID is this participantId and
+  // is not found in participants.js (handy for quick local testing).
+  // Real per-participant letters live in participants.js.
+  part2Letters: ["A", "E", "I", "O", "U", "R", "S", "T"],
+
+  // Your email — the "Email me my answers" button pre-fills a message to this.
+  // Blank on the public site: the LimeSurvey iframe returns results via
+  // postMessage, so the email fallback is not used here.
+  researcherEmail: "",
+
+  // Font for the Part 2 letters (letters are always shown UPPERCASE):
+  //   "courier"    = Courier New (docs/fonts/CourierNew.ttf) — the default
+  //   "bacs2serif" = the BACS2 artificial serif font
+  part2Font: "courier",
+
+  // Part 1 base characters. "auto" detects the 26 glyphs present in the font.
+  // Or hard-set a string, e.g. "abcdefghijklmnopqrstuvwxyz".
+  part1Chars: "auto",
+
+  // Shuffle order within each part.
+  randomize: true,
+
+  // GDPR-clean auto-submit: URL of YOUR collector endpoint.
+  // Leave "" to disable auto-submit and use the download + email flow instead.
+  submitUrl: "",
+};
+/* =================================================================== *
+ *  END CONFIG — you normally don't need to edit below this line.      *
+ * =================================================================== */
+
+const app = document.getElementById("app");
+const results = [];              // one object per trial
+const meta = {
+  participant_id: CONFIG.participantId,
+  started_iso: new Date().toISOString(),
+  user_agent: navigator.userAgent,
+};
+
+/* ---------- utilities ---------- */
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* Detect which candidate characters actually have a glyph in `family`,
+   by comparing a canvas render against a plain-monospace baseline. */
+function detectGlyphs(family, candidates) {
+  const size = 64, W = 80, H = 80;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const ctx = c.getContext("2d");
+  function sig(ch, font) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.font = font;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillText(ch, W / 2, H / 2);
+    const d = ctx.getImageData(0, 0, W, H).data;
+    let s = 0;
+    for (let i = 0; i < d.length; i += 4) { if (d[i + 3] > 10) s = (s * 31 + i) >>> 0; }
+    return s;
+  }
+  const supported = [];
+  for (const ch of candidates) {
+    const base = sig(ch, `${size}px monospace`);
+    const test = sig(ch, `${size}px "${family}", monospace`);
+    if (test !== base) supported.push(ch);
+  }
+  return supported;
+}
+
+async function resolvePart1Chars() {
+  // Make sure the BACS fonts are actually loaded before probing.
+  try {
+    await document.fonts.load(`64px "BACS2serif"`);
+    await document.fonts.load(`64px "BACS2serifItalic"`);
+    await document.fonts.ready;
+  } catch (e) { /* ignore */ }
+
+  if (CONFIG.part1Chars !== "auto") return CONFIG.part1Chars.split("");
+
+  const lower = "abcdefghijklmnopqrstuvwxyz".split("");
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const digits = "0123456789".split("");
+  const supLower = detectGlyphs("BACS2serif", lower);
+  const supUpper = detectGlyphs("BACS2serif", upper);
+  const supDigit = detectGlyphs("BACS2serif", digits);
+
+  // Prefer UPPERCASE A–Z; fall back to lowercase only if the font has no
+  // uppercase glyphs, so Part 1 still runs rather than showing empty boxes.
+  let chosen;
+  if (supUpper.length > 0) chosen = supUpper;
+  else if (supLower.length > 0) chosen = supLower;
+  else chosen = upper; // last-resort fallback
+
+  console.log("[BACS2] detected lower:", supLower.length,
+              "upper:", supUpper.length, "digits:", supDigit.length,
+              "| using", chosen.length, "chars:", chosen.join(""));
+  meta.part1_chars_detected = chosen.join("");
+  meta.part1_detect_counts = { lower: supLower.length, upper: supUpper.length, digits: supDigit.length };
+  return chosen;
+}
+
+/* ---------- build trial list ---------- */
+let TRIALS = [];
+function buildTrials(part1Chars) {
+  const p1 = [];
+  for (const ch of part1Chars) {
+    p1.push({ part: 1, item: ch, font: "BACS2serif",       cls: "serif",  type: "yesno" });
+    p1.push({ part: 1, item: ch, font: "BACS2serif-Italic", cls: "italic", type: "yesno" });
+  }
+  const letterCls = CONFIG.part2Font === "bacs2serif" ? "serif" : "letter";
+  const letterFont = CONFIG.part2Font === "bacs2serif" ? "BACS2serif" : "CourierNew";
+  const p2 = CONFIG.part2Letters.map(ch => ({
+    part: 2, item: String(ch).toUpperCase(), font: letterFont, cls: letterCls, type: "text"
+  }));
+  const part1 = CONFIG.randomize ? shuffle(p1) : p1;
+  const part2 = CONFIG.randomize ? shuffle(p2) : p2;
+  TRIALS = part1.concat(part2);
+}
+
+/* ---------- flow / rendering ---------- */
+let idx = 0;               // index into TRIALS
+let trialStart = 0;
+let awaitingResponse = false;   // true only while a trial is on screen
+const P1_COUNT = () => TRIALS.filter(t => t.part === 1).length;
+const P2_COUNT = () => TRIALS.filter(t => t.part === 2).length;
+
+/* ---------- participant ID entry & lookup ---------- */
+let PART1_CHARS = [];
+
+function lookupLetters(id) {
+  if (typeof PARTICIPANTS === "undefined" || !PARTICIPANTS) return null;
+  let entry = PARTICIPANTS[id];
+  if (entry == null) {
+    const key = Object.keys(PARTICIPANTS)
+      .find(k => k.trim().toLowerCase() === id.trim().toLowerCase());
+    if (key) entry = PARTICIPANTS[key];
+  }
+  if (entry == null) return null;
+  const arr = Array.isArray(entry) ? entry.slice() : String(entry).split("");
+  return arr.map(c => String(c).trim()).filter(c => c.length);
+}
+
+function screenId() {
+  app.innerHTML = `
+    <h1>Colour questionnaire</h1>
+    <p class="muted">Please enter the participant number you were given.</p>
+    <input type="text" id="pid" placeholder="e.g. P001" autocomplete="off" />
+    <div class="btnrow"><button class="primary" id="go">Continue</button></div>
+    <div class="warn" id="err"></div>`;
+  const input = document.getElementById("pid");
+  const err = document.getElementById("err");
+  // Optional convenience: prefill from ?pid=... in the URL.
+  const urlId = new URLSearchParams(location.search).get("pid");
+  if (urlId) input.value = urlId;
+  input.focus();
+  const submit = () => {
+    const id = input.value.trim();
+    if (!id) { err.textContent = "Please enter your participant number."; return; }
+    let letters = lookupLetters(id);
+    if (!letters && id.toLowerCase() === String(CONFIG.participantId).toLowerCase()) {
+      letters = CONFIG.part2Letters.slice();          // testing fallback
+    }
+    if (!letters || letters.length === 0) {
+      err.textContent = "That participant number was not found. Please check it and try again.";
+      return;
+    }
+    CONFIG.participantId = id;
+    meta.participant_id = id;
+    CONFIG.part2Letters = letters;
+    buildTrials(PART1_CHARS);
+    screenIntro();
+  };
+  document.getElementById("go").onclick = submit;
+  input.onkeydown = (e) => { if (e.key === "Enter") submit(); };
+}
+
+function screenIntro() {
+  app.innerHTML = `
+    <span class="pill">Participant: ${escapeHtml(CONFIG.participantId)}</span>
+    <h1>Colour questionnaire</h1>
+    <div class="lead muted">
+      <p>Thank you for taking part. This short questionnaire has two parts and takes
+      only a few minutes.</p>
+      <ul>
+        <li><b>Part 1:</b> you will see symbols one at a time and answer
+        <i>Yes</i> or <i>No</i> to whether each has a colour for you.</li>
+        <li><b>Part 2:</b> you will see letters one at a time and type the colour
+        each one has for you.</li>
+      </ul>
+      <p>There are no right or wrong answers — just respond with your first impression.</p>
+    </div>
+    <div class="btnrow"><button class="primary" id="go">Start</button></div>`;
+  document.getElementById("go").onclick = screenPart1Intro;
+}
+
+function screenPart1Intro() {
+  app.innerHTML = `
+    <h1>Part 1 of 2</h1>
+    <p class="question">Does this symbol have a colour for you?</p>
+    <div class="lead muted">
+      <p>You will see ${P1_COUNT()} symbols, one at a time. For each, click
+      <b>Yes</b> or <b>No</b>.</p>
+      <p class="key">Tip: you can also press the <b>Y</b> and <b>N</b> keys.</p>
+    </div>
+    <div class="btnrow"><button class="primary" id="go">Begin Part 1</button></div>`;
+  document.getElementById("go").onclick = () => { idx = 0; renderTrial(); };
+}
+
+function screenPart2Intro() {
+  app.innerHTML = `
+    <h1>Part 2 of 2</h1>
+    <p class="question">What colour is this letter for you?</p>
+    <div class="lead muted">
+      <p>You will see ${P2_COUNT()} letters, one at a time. Type the colour each one
+      has for you, then press <b>Enter</b> or click <b>Next</b>.</p>
+      <p>If a letter has no colour for you, click <b>No colour</b>.</p>
+    </div>
+    <div class="btnrow"><button class="primary" id="go">Begin Part 2</button></div>`;
+  document.getElementById("go").onclick = () => { renderTrial(); };
+}
+
+function renderTrial() {
+  if (idx >= TRIALS.length) return screenDone();
+  const t = TRIALS[idx];
+
+  // Show the part-2 intro exactly when we cross from part 1 to part 2.
+  if (t.part === 2 && (idx === 0 || TRIALS[idx - 1].part === 1)) {
+    // guard so the intro isn't shown twice
+    if (!renderTrial._p2shown) { renderTrial._p2shown = true; return screenPart2Intro(); }
+  }
+
+  const inPart = TRIALS.slice(0, idx + 1).filter(x => x.part === t.part).length;
+  const partTotal = t.part === 1 ? P1_COUNT() : P2_COUNT();
+  const pct = Math.round((inPart - 1) / partTotal * 100);
+
+  if (t.type === "yesno") {
+    app.innerHTML = `
+      <div class="progress">Part ${t.part} &middot; ${inPart} of ${partTotal}</div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <p class="question">Does this symbol have a colour for you?</p>
+      <div class="stim ${t.cls}">${escapeHtml(t.item)}</div>
+      <div class="btnrow">
+        <button class="yesno" id="yes">Yes <span class="key">(Y)</span></button>
+        <button class="yesno" id="no">No <span class="key">(N)</span></button>
+      </div>`;
+    const answer = (val) => record(t, val);
+    document.getElementById("yes").onclick = () => answer("yes");
+    document.getElementById("no").onclick  = () => answer("no");
+  } else {
+    app.innerHTML = `
+      <div class="progress">Part ${t.part} &middot; ${inPart} of ${partTotal}</div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <p class="question">What colour is this letter for you?</p>
+      <div class="stim ${t.cls}">${escapeHtml(t.item)}</div>
+      <input type="text" id="ans" placeholder="type the colour…" autocomplete="off" />
+      <div class="btnrow">
+        <button id="none">No colour</button>
+        <button class="primary" id="next" disabled>Next</button>
+      </div>`;
+    const input = document.getElementById("ans");
+    const next = document.getElementById("next");
+    input.focus();
+    input.oninput = () => { next.disabled = input.value.trim() === ""; };
+    input.onkeydown = (e) => { if (e.key === "Enter" && input.value.trim() !== "") record(t, input.value.trim()); };
+    next.onclick = () => record(t, input.value.trim());
+    document.getElementById("none").onclick = () => record(t, "none");
+  }
+  trialStart = performance.now();
+  awaitingResponse = true;
+}
+
+function record(t, response) {
+  if (!awaitingResponse) return;   // ignore stray input between trials
+  awaitingResponse = false;
+  results.push({
+    participant_id: CONFIG.participantId,
+    part: t.part,
+    order_index: idx + 1,
+    item: t.item,
+    font: t.font,
+    question: t.part === 1 ? "Does this symbol have a colour for you?"
+                           : "What colour is this letter for you?",
+    response: response,
+    rt_ms: Math.round(performance.now() - trialStart),
+    timestamp_iso: new Date().toISOString(),
+  });
+  idx++;
+  renderTrial();
+}
+
+/* ---------- keyboard shortcuts for Part 1 ---------- */
+document.addEventListener("keydown", (e) => {
+  if (!awaitingResponse) return;
+  const t = TRIALS[idx];
+  if (!t || t.type !== "yesno") return;
+  const k = e.key.toLowerCase();
+  if (k === "y") { e.preventDefault(); record(t, "yes"); }
+  else if (k === "n") { e.preventDefault(); record(t, "no"); }
+});
+
+/* ---------- finish ---------- */
+const EMBEDDED = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+
+async function screenDone() {
+  meta.finished_iso = new Date().toISOString();
+  const csv = toCSV();
+  const fname = `synesthesia_${sanitize(CONFIG.participantId)}_${stamp()}.csv`;
+
+  if (EMBEDDED) {
+    // Running inside a LimeSurvey (or other) iframe: hand data to the parent page,
+    // which stores it and advances the survey. No download here.
+    try {
+      window.parent.postMessage(
+        { app: "bacs", schema: 1, filename: fname, meta: meta, trials: results, csv: csv }, "*");
+    } catch (e) { console.error("[postMessage] failed:", e); }
+    app.innerHTML = `
+      <h1>All done — thank you! 🎉</h1>
+      <p class="muted">Your answers have been recorded. One moment…</p>`;
+    return;
+  }
+
+  if (CONFIG.submitUrl) {
+    // GDPR-clean auto-submit to your endpoint, with download as a safety net.
+    app.innerHTML = `<h1>Submitting your answers…</h1>
+      <p class="muted">Please wait a moment — do not close this window.</p>`;
+    const ok = await submitResults(fname, csv);
+    if (ok) {
+      app.innerHTML = `
+        <h1>All done — thank you! 🎉</h1>
+        <p class="muted">Your answers have been sent to the researcher successfully.
+        You can close this window.</p>`;
+      return;
+    }
+    // fell through: submission failed → show manual fallback
+    return doneFallback(csv, fname,
+      `<div class="warn">Automatic sending didn't work — please use the buttons below so your
+       answers still reach the researcher.</div>`);
+  }
+
+  // No endpoint configured: download + email flow.
+  doneFallback(csv, fname, "");
+}
+
+function doneFallback(csv, fname, statusHtml) {
+  downloadFile(fname, csv, "text/csv");  // auto-download once
+  const subject = encodeURIComponent(`Synesthesia questionnaire — ${CONFIG.participantId}`);
+  const body = encodeURIComponent(
+    `Hello,\n\nPlease find my questionnaire answers attached (file: ${fname}).\n\n` +
+    `If the file did not attach, I can paste the data instead.\n\nThank you.`);
+  const mailto = `mailto:${CONFIG.researcherEmail}?subject=${subject}&body=${body}`;
+
+  app.innerHTML = `
+    ${statusHtml}
+    <h1>All done — thank you! 🎉</h1>
+    <p class="muted">Your answers have been saved to a file:<br><b>${escapeHtml(fname)}</b>
+    <br>(check your browser's Downloads folder).</p>
+    <div class="lead muted">
+      <p><b>Final step:</b> please send that file to the researcher:</p>
+      <ol>
+        <li>Click <b>Email my answers</b> below — it opens a new email to the researcher.</li>
+        <li>Attach the downloaded file <b>${escapeHtml(fname)}</b> and send.</li>
+      </ol>
+      <p>If the download didn't start, use <b>Download again</b>. If email doesn't open,
+      you can <b>Copy the data</b> and paste it into an email yourself.</p>
+    </div>
+    <div class="btnrow">
+      <a href="${mailto}"><button class="primary">Email my answers</button></a>
+      <button id="dl">Download again</button>
+      <button id="cp">Copy the data</button>
+    </div>
+    <textarea class="dump" id="dump" readonly>${escapeHtml(csv)}</textarea>`;
+  document.getElementById("dl").onclick = () => downloadFile(fname, csv, "text/csv");
+  document.getElementById("cp").onclick = async () => {
+    try { await navigator.clipboard.writeText(csv); alert("Data copied to clipboard."); }
+    catch (e) { document.getElementById("dump").select(); }
+  };
+}
+
+/* POST results to CONFIG.submitUrl. Returns true on success, false otherwise. */
+async function submitResults(fname, csv) {
+  const payload = {
+    schema: 1,
+    filename: fname,
+    meta: meta,
+    trials: results,
+    csv: csv,
+  };
+  try {
+    const res = await fetch(CONFIG.submitUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch (e) {
+    console.error("[submit] failed:", e);
+    return false;
+  }
+}
+
+/* ---------- output helpers ---------- */
+function toCSV() {
+  const cols = ["participant_id","part","order_index","item","font","question","response","rt_ms","timestamp_iso"];
+  const esc = (v) => {
+    const s = String(v == null ? "" : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const metaLines = [
+    `# participant_id,${esc(meta.participant_id)}`,
+    `# started_iso,${esc(meta.started_iso)}`,
+    `# finished_iso,${esc(meta.finished_iso)}`,
+    `# part1_chars_detected,${esc(meta.part1_chars_detected || "")}`,
+    `# user_agent,${esc(meta.user_agent)}`,
+  ];
+  const header = cols.join(",");
+  const rows = results.map(r => cols.map(c => esc(r[c])).join(","));
+  return metaLines.concat([header]).concat(rows).join("\n");
+}
+
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime + ";charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function stamp() {
+  const d = new Date(), p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+function sanitize(s) { return String(s).replace(/[^A-Za-z0-9_-]/g, "_"); }
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+/* ---------- boot ---------- */
+(async function init() {
+  PART1_CHARS = await resolvePart1Chars();
+  if (PART1_CHARS.length !== 26) {
+    console.warn(`[BACS2] expected 26 Part-1 characters, got ${PART1_CHARS.length}. ` +
+                 `Set CONFIG.part1Chars manually if this is wrong.`);
+  }
+
+  // Direct mode (used by the LimeSurvey iframe embed): letters come in the URL as
+  // ?letters=BCDFGHJK&pid=P002 — skip the ID-entry screen and start immediately.
+  const params = new URLSearchParams(location.search);
+  const urlLetters = (params.get("letters") || "").replace(/[^A-Za-z]/g, "");
+  if (urlLetters) {
+    CONFIG.participantId = params.get("pid") || CONFIG.participantId;
+    meta.participant_id = CONFIG.participantId;
+    CONFIG.part2Letters = urlLetters.toUpperCase().split("");
+    buildTrials(PART1_CHARS);
+    screenIntro();
+    return;
+  }
+
+  screenId();          // otherwise: ask for the participant number
+})();
+</script>
+</body>
+</html>

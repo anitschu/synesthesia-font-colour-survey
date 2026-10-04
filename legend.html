@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BACS2 symbol legend</title>
+<style>
+  @font-face {
+    font-family: "BACS2serif";
+    src: url("./fonts/BACS2serif.otf") format("opentype");
+    font-weight: normal; font-style: normal; font-display: block;
+  }
+  @font-face {
+    font-family: "BACS2serifItalic";
+    src: url("./fonts/BACS2serif-Italic.otf") format("opentype");
+    font-weight: normal; font-style: normal; font-display: block;
+  }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: #1a1a1a; margin: 0; padding: 32px; background: #fff;
+  }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  p.sub { color: #6b7280; margin: 0 0 20px; }
+  table { border-collapse: collapse; width: 100%; max-width: 760px; }
+  th, td { border: 1px solid #e2e2e6; padding: 8px 10px; text-align: center; }
+  th { background: #f4f4f5; font-size: .85rem; }
+  td.item { font-family: ui-monospace, Consolas, monospace; font-size: 1.1rem; font-weight: 600; }
+  td.code { font-family: ui-monospace, Consolas, monospace; font-size: .8rem; color: #6b7280; }
+  .g-serif  { font-family: "BACS2serif", monospace; font-size: 44px; }
+  .g-italic { font-family: "BACS2serifItalic", monospace; font-size: 44px; }
+  @media print { body { padding: 0; } .noprint { display: none; } }
+</style>
+</head>
+<body>
+  <h1>BACS2 symbol legend</h1>
+  <p class="sub">Each row shows the <b>item</b> value from the CSV and the exact symbol the
+  participant saw. Use it to decode the <code>item</code> column.
+  <span class="noprint">(Print or Save-as-PDF to keep a copy.)</span></p>
+  <div id="mount">Loading fonts…</div>
+
+<script>
+function detectGlyphs(family, candidates) {
+  const size = 64, W = 80, H = 80;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const ctx = c.getContext("2d");
+  function sig(ch, font) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.font = font; ctx.textBaseline = "middle"; ctx.textAlign = "center";
+    ctx.fillText(ch, W / 2, H / 2);
+    const d = ctx.getImageData(0, 0, W, H).data;
+    let s = 0;
+    for (let i = 0; i < d.length; i += 4) { if (d[i + 3] > 10) s = (s * 31 + i) >>> 0; }
+    return s;
+  }
+  const out = [];
+  for (const ch of candidates) {
+    if (sig(ch, `${size}px "${family}", monospace`) !== sig(ch, `${size}px monospace`)) out.push(ch);
+  }
+  return out;
+}
+
+(async function () {
+  try {
+    await document.fonts.load('64px "BACS2serif"');
+    await document.fonts.load('64px "BACS2serifItalic"');
+    await document.fonts.ready;
+  } catch (e) {}
+
+  const lower = "abcdefghijklmnopqrstuvwxyz".split("");
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const digits = "0123456789".split("");
+  const supLower = detectGlyphs("BACS2serif", lower);
+  const supUpper = detectGlyphs("BACS2serif", upper);
+  const supDigit = detectGlyphs("BACS2serif", digits);
+
+  let chosen, label;
+  if (supUpper.length > 0) { chosen = supUpper; label = "uppercase A–Z"; }
+  else if (supLower.length > 0) { chosen = supLower; label = "lowercase a–z"; }
+  else { chosen = upper; label = "fallback (no glyphs detected!)"; }
+  if (supDigit.length) chosen = chosen.concat(supDigit);
+
+  let rows = "";
+  for (const ch of chosen) {
+    const code = "U+" + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
+    rows += `<tr>
+      <td class="item">${ch}</td>
+      <td class="code">${code}</td>
+      <td class="g-serif">${ch}</td>
+      <td class="g-italic">${ch}</td>
+    </tr>`;
+  }
+  document.getElementById("mount").innerHTML = `
+    <p class="sub">Detected set: <b>${label}</b> &middot; ${chosen.length} symbols
+    (lower ${supLower.length}, upper ${supUpper.length}, digits ${supDigit.length}).</p>
+    <table>
+      <thead><tr><th>item (CSV)</th><th>code point</th>
+      <th>BACS2 serif<br><small>font = BACS2serif</small></th>
+      <th>BACS2 italic<br><small>font = BACS2serif-Italic</small></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+})();
+</script>
+</body>
+</html>
